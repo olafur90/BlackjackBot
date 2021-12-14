@@ -37,11 +37,9 @@ fi
 
 value=$(echo "$input" | awk '/"value"/ {print $3}' | sed 's/,$//')
 vout=$(echo "$input" | awk '/"n"/ {print $3}' | sed 's/,$//')
+winnings=$( expr $value*2 | bc)
 
-#winnings=$( expr 2*$value | bc)    LAGA ÞEGAR GUNNAR SVARAR
-
-winnings=$( expr $value | bc)
-
+# Reyna að finna OP_RETURN strenginn til að athuga hvort það sé vinningur
 getMsg1=$(smileycoin-cli getrawtransaction $TxID)
 getMsg2=$(smileycoin-cli decoderawtransaction $getMsg1 | awk '/"txid"/ {print $3}' | tail -1 | sed 's/"//g' | sed 's/,$//')
 getMsg3=$(smileycoin-cli getrawtransaction $getMsg2)
@@ -49,28 +47,18 @@ message=$(smileycoin-cli decoderawtransaction $getMsg3 | grep "6a0" | awk '/"hex
 
 echo "Message: $message"
 
-echo "Message: $message" >> $logfile
-
+# Ef þessi strengur "6a0199" kom með OP_RETURN þá er þetta vinningur og bottinn sendir til baka vinninginn
 if [ "$message" = "6a0199" ]
 then
-  # Create a new raw transaction to return winnings to player
-  rawTransaction=$(smileycoin-cli createrawtransaction '[{"txid" : "'$TxID'","vout" : '$vout'}]' '{"'$playerAddress'" : '$winnings'}')
-
-  # Sign the transaction
-  signedTransaction=$(smileycoin-cli signrawtransaction "$rawTransaction")
-
-  # Get the signed transaction
-  signedHex=$(echo "$signedTransaction" | awk '/"hex"/ {print $3}' | sed 's/"//g' | sed 's/,$//')
-
-  # Send the transaction
-  # smileycoin-cli sendrawtransaction $signedHex             ÞETTA ÞARF AÐ LAGA ÞEGAR GUNNAR SVARAR, FINNA EITTHVAÐ UTXO SEM HÆGT ER AÐ NOTA
-
+  smileycoin-cli sendtoaddress $playerAddress $winnings
+  echo "playerAddress: $playerAddress" >> $logfile
   echo "Value: $value" >> $logfile
   echo "Winnings: $winnings" >> $logfile
+  exit
 elif [ -z "$message" ]
 then
   echo "No message" >> $logfile
+  exit
 else
   echo "YOU LOSE" >> $logfile
-  # BÆTA VIÐ VIRKNI TIL AÐ SENDA HLUTA TIL GÓÐGERÐARMÁLA EÐA GERA ÞAÐ Í LEIKJASKRIFTUNNI
 fi
